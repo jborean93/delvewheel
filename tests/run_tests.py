@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import typing
 import unittest
 import zipfile
@@ -1453,6 +1454,99 @@ class NeededTestCase(TestCase):
             'api-ms-win-crt-string-l1-1-0.dll\napi-ms-win-crt-time-l1-1-0.dll\napi-ms-win-crt-utility-l1-1-0.dll\n'
             'KERNEL32.dll\nVCRUNTIME140.dll\nVCRUNTIME140_1.dll\n', p.stdout)
         self.assertFalse(p.stderr)
+
+
+class ReplaceNeededTestCase(TestCase):
+    """Tests for delvewheel replace-needed"""
+    def setUp(self):
+        self._tempdir = tempfile.TemporaryDirectory(delete=not DEBUG)
+
+    def set_up(self, trailing_data: bool = False):
+        if trailing_data:
+            src_path = 'simpleext/x64/trailing_data/simpledll.dll'
+        else:
+            src_path = 'simpleext/x64/simpledll.dll'
+        shutil.copy2(src_path, self._tempdir.name)
+        self._simpledll_path = os.path.join(self._tempdir.name, 'simpledll.dll')
+
+    def tearDown(self):
+        if not DEBUG:
+            self._tempdir.cleanup()
+
+    def test_missing_change(self):
+        """-change is missing"""
+        self.set_up()
+        self.assertRaises(subprocess.CalledProcessError, check_call, ['delvewheel', 'replace-needed', self._simpledll_path])
+
+    def test_not_needed(self):
+        """old DLL name is not needed"""
+        self.set_up()
+        self.assertRaises(subprocess.CalledProcessError, check_call, ['delvewheel', 'replace-needed', '-change', 'a.dll', 'b.dll', self._simpledll_path])
+
+    def test_unchanged(self):
+        """old and new DLL names are identical except for case"""
+        self.set_up()
+        self.assertRaises(subprocess.CalledProcessError, check_call, ['delvewheel', 'replace-needed', '-change', 'vcruntime140.dll', 'Vcruntime140.dll', self._simpledll_path])
+
+    def test_invalid_multiple_old(self):
+        """old DLL name is specified multiple times, differing by case only"""
+        self.set_up()
+        self.assertRaises(subprocess.CalledProcessError, check_call, ['delvewheel', 'replace-needed', '-change', 'vcruntime140.dll', 'a.dll', '-change', 'Vcruntime140.dll', 'b.dll', self._simpledll_path])
+
+    def test_invalid_multiple_new(self):
+        """new DLL name is specified multiple times, differing by case only"""
+        self.set_up()
+        self.assertRaises(subprocess.CalledProcessError, check_call, ['delvewheel', 'replace-needed', '-change', 'vcruntime140.dll', 'a.dll', '-change', 'kernel32.dll', 'A.dll', self._simpledll_path])
+
+    def test_single(self):
+        """-change specified once"""
+        self.set_up()
+        check_call(['delvewheel', 'replace-needed', '-change', 'vcruntime140.dll', 'A.dlL', self._simpledll_path])
+        p = subprocess.run(['delvewheel', 'needed', self._simpledll_path], capture_output=True, text=True, check=True)
+        output = p.stdout.split()
+        self.assertIn('A.dlL', output)
+        self.assertNotIn('vcruntime140.dll', [x.lower() for x in output])
+
+    def test_multiple(self):
+        """-change specified multiple times"""
+        self.set_up()
+        check_call(['delvewheel', 'replace-needed', '-change', 'vcruntime140.dll', 'a.dll', '-change', 'kernel32.dll', 'b.dll', self._simpledll_path])
+        p = subprocess.run(['delvewheel', 'needed', self._simpledll_path], capture_output=True, text=True, check=True)
+        output = p.stdout.split()
+        self.assertIn('a.dll', output)
+        self.assertNotIn('vcruntime140.dll', [x.lower() for x in output])
+
+    def test_not_enough_padding(self):
+        """simulate insufficient padding when writing new DLL names"""
+        self.set_up()
+        check_call(['delvewheel', 'replace-needed', '-change', 'vcruntime140.dll', 'a.dll', '--test', 'not_enough_padding', self._simpledll_path])
+        p = subprocess.run(['delvewheel', 'needed', self._simpledll_path], capture_output=True, text=True, check=True)
+        output = p.stdout.split()
+        self.assertIn('a.dll', output)
+        self.assertNotIn('vcruntime140.dll', [x.lower() for x in output])
+
+    def test_strip_unnecessary(self):
+        """--strip is not harmful when specified unnecessarily"""
+        self.set_up()
+        check_call(['delvewheel', 'replace-needed', '--strip', '-change', 'vcruntime140.dll', 'a.dll', self._simpledll_path])
+        p = subprocess.run(['delvewheel', 'needed', self._simpledll_path], capture_output=True, text=True, check=True)
+        output = p.stdout.split()
+        self.assertIn('a.dll', output)
+        self.assertNotIn('vcruntime140.dll', [x.lower() for x in output])
+
+    def test_strip_missing(self):
+        """--strip is missing, leading to error"""
+        self.set_up(True)
+        self.assertRaises(subprocess.CalledProcessError, check_call, ['delvewheel', 'replace-needed', '-change', 'vcruntime140.dll', 'a.dll', '--test', 'not_enough_padding', self._simpledll_path])
+
+    def test_strip(self):
+        """--strip is used"""
+        self.set_up(True)
+        check_call(['delvewheel', 'replace-needed', '--strip', '-change', 'vcruntime140.dll', 'a.dll', '--test', 'not_enough_padding', self._simpledll_path])
+        p = subprocess.run(['delvewheel', 'needed', self._simpledll_path], capture_output=True, text=True, check=True)
+        output = p.stdout.split()
+        self.assertIn('a.dll', output)
+        self.assertNotIn('vcruntime140.dll', [x.lower() for x in output])
 
 
 @unittest.skipUnless(sys.version_info[:2] == (3, 9), 'Python version is not 3.9')
