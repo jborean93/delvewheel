@@ -1,3 +1,7 @@
+## 1.13.0 <sub><sup>(_28 May 2026_)</sup></sub>
+- Ignore `PermissionError` when searching `PATH` for DLLs if the user has insufficient permissions to view a path entry.
+- Introduce `replace-needed` subcommand.
+
 ## 1.12.1 <sub><sup>(_6 May 2026_)</sup></sub>
 - Support the `abi3t` tag defined in [PEP 803](https://peps.python.org/pep-0803/).
 - Improve the Limitations section of the README.
