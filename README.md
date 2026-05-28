@@ -39,7 +39,7 @@ The environment used to run `delvewheel` does _not_ need to match the target env
 
 `delvewheel show` and `delvewheel repair` support specifying multiple wheels in a single invocation. They also support using the `*` wildcard in the wheel filename.
 
-For a summary of additional command-line options, use the `-h` option (`delvewheel -h`, `delvewheel show -h`, `delvewheel repair -h`, `delvewheel needed -h`).
+For a summary of additional command-line options, use the `-h` option (`delvewheel -h`, `delvewheel show -h`, `delvewheel repair -h`, `delvewheel needed -h`, `delvewheel replace-needed -h`).
 
 ## Additional Options
 
