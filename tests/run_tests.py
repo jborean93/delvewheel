@@ -1514,7 +1514,23 @@ class ReplaceNeededTestCase(TestCase):
         p = subprocess.run(['delvewheel', 'needed', self._simpledll_path], capture_output=True, text=True, check=True)
         output = p.stdout.split()
         self.assertIn('a.dll', output)
+        self.assertIn('b.dll', output)
         self.assertNotIn('vcruntime140.dll', [x.lower() for x in output])
+        self.assertNotIn('kernel32.dll', [x.lower() for x in output])
+
+    def test_multiple_invocations(self):
+        """-change used in separate invocations"""
+        self.set_up()
+        check_call(['delvewheel', 'replace-needed', '-change', 'vcruntime140.dll', 'a.dll', self._simpledll_path])
+        check_call(['delvewheel', 'replace-needed', '-change', 'kernel32.dll', 'b.dll', self._simpledll_path])
+        check_call(['delvewheel', 'replace-needed', '-change', 'a.dll', 'c.dll', self._simpledll_path])
+        p = subprocess.run(['delvewheel', 'needed', self._simpledll_path], capture_output=True, text=True, check=True)
+        output = p.stdout.split()
+        self.assertIn('c.dll', output)
+        self.assertIn('b.dll', output)
+        self.assertNotIn('vcruntime140.dll', [x.lower() for x in output])
+        self.assertNotIn('kernel32.dll', [x.lower() for x in output])
+        self.assertNotIn('a.dll', output)
 
     def test_not_enough_padding(self):
         """simulate insufficient padding when writing new DLL names"""
