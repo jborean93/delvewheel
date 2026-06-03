@@ -679,7 +679,7 @@ class RepairTestCase(TestCase):
         22: Unicode characters in UTF-8 encoding
         23: Unicode characters in Windows-1252 encoding
         24: Unix-style line endings
-        25: classic Mac OS line endings"""
+        25: classic macOS line endings"""
         with zipfile.ZipFile('simpleext/simpleext-0.0.1-0init-cp312-cp312-win_amd64.whl') as wheel:
             cases = 1 + max(int(re.fullmatch(r'simpleext(\d+)', x.name)[1]) for x in zipfile.Path(wheel).iterdir() if re.fullmatch(r'simpleext(\d+)', x.name))
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-0init-cp312-cp312-win_amd64.whl'])
